@@ -1,14 +1,11 @@
 package com.example.taskmanager.repository;
 
 import com.example.taskmanager.model.Task;
+import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
-import java.util.Optional;
 
-public interface TaskRepository {
-    Task save(Task task);
-    Optional<Task> findById(Long id);
+public interface TaskRepository extends JpaRepository<Task, Long> {
     List<Task> findAllByUserId(Long userId);
-    List<Task> findPendingByUserId(Long userId);
-    void softDelete(Long id);
+    List<Task> findByUserIdAndCompletedFalseAndDeletedFalse(Long userId);
 }

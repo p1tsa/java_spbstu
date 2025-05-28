@@ -2,13 +2,11 @@ package com.example.taskmanager.service;
 
 import com.example.taskmanager.model.Notification;
 import com.example.taskmanager.repository.NotificationRepository;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
-@Profile("inmemory")
 public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
@@ -29,6 +27,6 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public List<Notification> getUnreadByUserId(Long userId) {
-        return notificationRepository.findUnreadByUserId(userId);
+        return notificationRepository.findByUserIdAndReadFalse(userId);
     }
 }
