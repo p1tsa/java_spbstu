@@ -4,87 +4,98 @@ import com.example.taskmanager.model.Task;
 import com.example.taskmanager.repository.TaskRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.*;
+import org.mockito.ArgumentCaptor;
+
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class TaskServiceImplTest {
 
-    @Mock
     private TaskRepository taskRepository;
-
-    @InjectMocks
     private TaskServiceImpl taskService;
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
+        taskRepository = mock(TaskRepository.class);
+        taskService = new TaskServiceImpl(taskRepository);
     }
 
     @Test
     void testCreateTask() {
-        Task input = Task.builder()
-                .userId(1L)
-                .description("Test task")
-                .targetDate(LocalDateTime.now().plusDays(1))
-                .build();
+        Task task = new Task();
+        when(taskRepository.save(any(Task.class))).thenReturn(task);
 
-        Task saved = input.toBuilder().id(1L).build();
-
-        when(taskRepository.save(any(Task.class))).thenReturn(saved);
-
-        Task result = taskService.createTask(input);
+        Task result = taskService.createTask(task);
 
         assertNotNull(result);
-        assertEquals(1L, result.getId());
         assertFalse(result.isCompleted());
-        verify(taskRepository).save(any(Task.class));
+        assertFalse(result.isDeleted());
+        verify(taskRepository).save(task);
     }
 
     @Test
     void testGetAllTasksByUserId() {
-        List<Task> tasks = List.of(
-                new Task(1L, 1L, "Task 1", LocalDateTime.now(), null, false, false)
-        );
+        List<Task> tasks = Arrays.asList(new Task(), new Task());
         when(taskRepository.findAllByUserId(1L)).thenReturn(tasks);
 
         List<Task> result = taskService.getAllTasksByUserId(1L);
 
-        assertEquals(1, result.size());
+        assertEquals(2, result.size());
         verify(taskRepository).findAllByUserId(1L);
     }
 
     @Test
     void testGetPendingTasksByUserId() {
-        List<Task> tasks = List.of(
-                new Task(1L, 1L, "Active task", LocalDateTime.now(), null, false, false),
-                new Task(2L, 1L, "Completed task", LocalDateTime.now(), null, true, false),
-                new Task(3L, 1L, "Deleted task", LocalDateTime.now(), null, false, true)
-        );
-
-        when(taskRepository.findPendingByUserId(1L)).thenReturn(
-                List.of(tasks.get(0)) // Только одна "живая" задача
-        );
+        List<Task> tasks = Arrays.asList(new Task());
+        when(taskRepository.findByUserIdAndCompletedFalseAndDeletedFalse(1L)).thenReturn(tasks);
 
         List<Task> result = taskService.getPendingTasksByUserId(1L);
 
         assertEquals(1, result.size());
-        assertEquals("Active task", result.get(0).getDescription());
-        verify(taskRepository).findPendingByUserId(1L);
+        verify(taskRepository).findByUserIdAndCompletedFalseAndDeletedFalse(1L);
     }
 
     @Test
-    void testDeleteTask() {
-        Long taskId = 42L;
+    void testDeleteTask_whenTaskExists() {
+        Task task = new Task();
+        task.setDeleted(false);
+        when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
 
-        doNothing().when(taskRepository).softDelete(taskId);
+        taskService.deleteTask(1L);
 
-        taskService.deleteTask(taskId);
-
-        verify(taskRepository, times(1)).softDelete(taskId);
+        assertTrue(task.isDeleted());
+        verify(taskRepository).save(task);
     }
 
+    @Test
+    void testDeleteTask_whenTaskNotFound() {
+        when(taskRepository.findById(1L)).thenReturn(Optional.empty());
+
+        taskService.deleteTask(1L);
+
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void testCreateTask_setsCreationDate() {
+        Task task = new Task();
+        when(taskRepository.save(any(Task.class))).thenReturn(task);
+
+        taskService.createTask(task);
+
+        assertNotNull(task.getCreationDate());
+    }
+
+    @Test
+    void testCreateTask_callsRepositorySave() {
+        Task task = new Task();
+        taskService.createTask(task);
+
+        verify(taskRepository).save(task);
+    }
 }
