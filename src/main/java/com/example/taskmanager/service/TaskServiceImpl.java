@@ -2,14 +2,12 @@ package com.example.taskmanager.service;
 
 import com.example.taskmanager.model.Task;
 import com.example.taskmanager.repository.TaskRepository;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
-@Profile("inmemory")
 public class TaskServiceImpl implements TaskService {
 
     private final TaskRepository taskRepository;
@@ -33,11 +31,14 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     public List<Task> getPendingTasksByUserId(Long userId) {
-        return taskRepository.findPendingByUserId(userId);
+        return taskRepository.findByUserIdAndCompletedFalseAndDeletedFalse(userId);
     }
 
     @Override
     public void deleteTask(Long taskId) {
-        taskRepository.softDelete(taskId);
+        taskRepository.findById(taskId).ifPresent(task -> {
+            task.setDeleted(true);
+            taskRepository.save(task);
+        });
     }
 }
