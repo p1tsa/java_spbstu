@@ -8,4 +8,7 @@ WORKDIR /app
 COPY build/libs/taskmanager-0.0.1-SNAPSHOT.jar app.jar
 
 # Run the application
-ENTRYPOINT ["java", "-jar", "app.jar", "--spring.config.name=application-docker"]
+ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=docker"]
+
+
+
