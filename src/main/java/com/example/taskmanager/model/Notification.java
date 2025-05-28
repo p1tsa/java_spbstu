@@ -5,6 +5,7 @@ import lombok.*;
 
 @Entity
 @Data
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class Notification {

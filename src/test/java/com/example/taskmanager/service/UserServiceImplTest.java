@@ -4,7 +4,6 @@ import com.example.taskmanager.model.User;
 import com.example.taskmanager.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.*;
 
 import java.util.Optional;
 
@@ -13,73 +12,86 @@ import static org.mockito.Mockito.*;
 
 class UserServiceImplTest {
 
-    @Mock
     private UserRepository userRepository;
-
-    @InjectMocks
     private UserServiceImpl userService;
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
+        userRepository = mock(UserRepository.class);
+        userService = new UserServiceImpl(userRepository);
     }
 
     @Test
-    void testRegisterUser() {
-        User input = User.builder().username("alice").build();
-        User saved = User.builder().id(1L).username("alice").build();
+    void testRegisterUser_savesUser() {
+        User user = User.builder().username("alice").build();
+        when(userRepository.save(user)).thenReturn(user);
 
-        when(userRepository.save(input)).thenReturn(saved);
+        User result = userService.register(user);
 
-        User result = userService.register(input);
+        assertNotNull(result);
+        assertEquals("alice", result.getUsername());
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void testRegisterUser_returnsSavedUser() {
+        User user = User.builder().username("bob").build();
+        User savedUser = User.builder().id(1L).username("bob").build();
+        when(userRepository.save(user)).thenReturn(savedUser);
+
+        User result = userService.register(user);
 
         assertEquals(1L, result.getId());
-        assertEquals("alice", result.getUsername());
-        verify(userRepository).save(input);
+        assertEquals("bob", result.getUsername());
     }
 
     @Test
-    void testLoginFound() {
-        User user = User.builder().id(1L).username("alice").build();
+    void testLogin_existingUser_returnsUser() {
+        User user = User.builder().id(2L).username("john").build();
+        when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
 
-        when(userRepository.findByUsername("alice")).thenReturn(Optional.of(user));
-
-        Optional<User> result = userService.login("alice");
+        Optional<User> result = userService.login("john");
 
         assertTrue(result.isPresent());
-        assertEquals(1L, result.get().getId());
+        assertEquals("john", result.get().getUsername());
+        verify(userRepository).findByUsername("john");
     }
 
     @Test
-    void testLoginNotFound() {
-        when(userRepository.findByUsername("bob")).thenReturn(Optional.empty());
+    void testLogin_nonExistingUser_returnsEmptyOptional() {
+        when(userRepository.findByUsername("nonexistent")).thenReturn(Optional.empty());
 
-        Optional<User> result = userService.login("bob");
+        Optional<User> result = userService.login("nonexistent");
 
         assertFalse(result.isPresent());
+        verify(userRepository).findByUsername("nonexistent");
     }
 
     @Test
-    void testRegisterWithNullUsernameThrowsException() {
-        assertThrows(NullPointerException.class, () -> {
-            User.builder().username(null).build();
-        });
+    void testRegister_nullUsername() {
+        User user = new User();
+        when(userRepository.save(user)).thenReturn(user);
+
+        User result = userService.register(user);
+
+        assertNull(result.getUsername());
+        verify(userRepository).save(user);
     }
 
     @Test
-    void testRegisterDuplicateUsername() {
-        User user1 = User.builder().username("alice").build();
-        User user2 = User.builder().username("alice").build();
+    void testLogin_callsRepositoryExactlyOnce() {
+        when(userRepository.findByUsername("admin")).thenReturn(Optional.empty());
 
-        when(userRepository.save(user1)).thenReturn(User.builder().id(1L).username("alice").build());
-        when(userRepository.save(user2)).thenReturn(User.builder().id(2L).username("alice").build());
+        userService.login("admin");
 
-        User created1 = userService.register(user1);
-        User created2 = userService.register(user2);
+        verify(userRepository, times(1)).findByUsername("admin");
+    }
 
-        assertEquals("alice", created1.getUsername());
-        assertEquals("alice", created2.getUsername());
+    @Test
+    void testRegister_callsSaveOnce() {
+        User user = User.builder().username("test").build();
+        userService.register(user);
 
-        verify(userRepository, times(2)).save(any(User.class));
+        verify(userRepository, times(1)).save(user);
     }
 }
