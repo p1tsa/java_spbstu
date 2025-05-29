@@ -6,6 +6,10 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import com.example.taskmanager.messaging.MessagePublisher;
+import com.example.taskmanager.dto.NotificationMessage;
+
+
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -15,11 +19,15 @@ public class TaskServiceImpl implements TaskService {
 
     private final TaskRepository taskRepository;
     private final CacheManager cacheManager;
+    private final MessagePublisher messagePublisher;
 
-    public TaskServiceImpl(TaskRepository taskRepository, CacheManager cacheManager) {
+
+    public TaskServiceImpl(TaskRepository taskRepository, CacheManager cacheManager, MessagePublisher messagePublisher) {
         this.taskRepository = taskRepository;
         this.cacheManager = cacheManager;
+        this.messagePublisher = messagePublisher;
     }
+
 
     @Override
     @CacheEvict(value = {"tasks", "pendingTasks"}, key = "#task.userId")
@@ -27,8 +35,20 @@ public class TaskServiceImpl implements TaskService {
         task.setCreationDate(LocalDateTime.now());
         task.setCompleted(false);
         task.setDeleted(false);
-        return taskRepository.save(task);
+        Task saved = taskRepository.save(task);
+
+        NotificationMessage message = new NotificationMessage(
+                saved.getUserId(),
+                "New task created: " + saved.getDescription()
+        );
+
+        System.out.println(">>> Sending message to RabbitMQ: " + message);
+
+        messagePublisher.sendNotification(message);
+
+        return saved;
     }
+
 
     @Override
     @Cacheable(value = "tasks", key = "#userId")
