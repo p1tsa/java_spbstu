@@ -28,7 +28,6 @@ services:
       retries: 5
       start_period: 10s
 
-
   app:
     build: .
     container_name: taskmanager-app
@@ -45,6 +44,17 @@ services:
       SPRING_DATASOURCE_USERNAME: user
       SPRING_DATASOURCE_PASSWORD: password
       SPRING_JPA_HIBERNATE_DDL_AUTO: none
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: taskmanager-rabbitmq
+    ports:
+      - "5672:5672"      # порт для приложений
+      - "15672:15672"    # порт для веб-интерфейса
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
 
 
 volumes:
